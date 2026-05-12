@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Flujo n8n — Emails Personalizados con IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: rgba(255,255,255,0.07);
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --accent3: #56ccf2;
+    --gold: #f7c948;
+    --text: #f0f0f5;
+    --muted: #8a8a9a;
+    --green: #4ade80;
+    --orange: #fb923c;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: var(--accent); letter-spacing: -0.5px; }
+  .nav-links { display: flex; gap: 8px; }
+  .nav-links a {
+    font-size: 13px; color: var(--muted); text-decoration: none;
+    padding: 6px 12px; border-radius: 20px;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  .nav-links a:hover, .nav-links a.active {
+    color: var(--text); background: var(--surface2); border-color: var(--border);
+  }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 120px 40px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,92,252,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 60%, rgba(252,92,125,0.1) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 20% 70%, rgba(86,204,242,0.08) 0%, transparent 60%);
+  }
+  .hero-grid {
+    position: absolute; inset: 0; z-index: 0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 80%);
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(124,92,252,0.15); border: 1px solid rgba(124,92,252,0.3);
+    padding: 6px 16px; border-radius: 20px; font-size: 13px;
+    color: #b39dfc; margin-bottom: 28px; position: relative; z-index: 1;
+    animation: fadeUp 0.6s ease both;
+  }
+  .hero-badge::before { content: ''; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+  .hero h1 {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(42px, 7vw, 80px); line-height: 1.05;
+    letter-spacing: -2px; position: relative; z-index: 1;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+  .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero p {
+    font-size: 20px; color: var(--muted); max-width: 580px; margin: 24px auto 0;
+    line-height: 1.6; position: relative; z-index: 1;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+  .hero-stats {
+    display: flex; gap: 40px; margin-top: 56px; position: relative; z-index: 1;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+  .stat { text-align: center; }
+  .stat-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 36px; color: var(--text); }
+  .stat-num span { color: var(--accent); }
+  .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .scroll-hint {
+    position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    color: var(--muted); font-size: 12px; z-index: 1;
+    animation: bounce 2s infinite;
+  }
+  .scroll-hint::after { content: '↓'; font-size: 18px; }
+  @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(6px)} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+  /* SECTIONS */
+  section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 16px;
+  }
+  .section-label::before { content: ''; width: 24px; height: 1px; background: var(--accent); }
+  h2 {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: clamp(28px, 4vw, 44px); letter-spacing: -1px; margin-bottom: 16px;
+  }
+  .section-desc { font-size: 18px; color: var(--muted); max-width: 600px; line-height: 1.6; margin-bottom: 56px; }
+
+  /* FLUJO VISUAL */
+  .flow-container { position: relative; }
+  .flow-phases { display: flex; flex-direction: column; gap: 0; }
+  .flow-phase {
+    display: grid; grid-template-columns: 200px 1fr;
+    gap: 0 32px; position: relative;
+  }
+  .phase-label-col {
+    display: flex; flex-direction: column; align-items: flex-end; padding-top: 28px;
+  }
+  .phase-tag {
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 6px 12px; border-radius: 4px; white-space: nowrap;
+  }
+  .phase-tag.datos { background: rgba(86,204,242,0.12); color: var(--accent3); border: 1px solid rgba(86,204,242,0.2); }
+  .phase-tag.ia { background: rgba(124,92,252,0.12); color: #b39dfc; border: 1px solid rgba(124,92,252,0.2); }
+  .phase-tag.validacion { background: rgba(247,201,72,0.12); color: var(--gold); border: 1px solid rgba(247,201,72,0.2); }
+  .phase-tag.decision { background: rgba(252,92,125,0.12); color: #fc9db3; border: 1px solid rgba(252,92,125,0.2); }
+  .phase-tag.envio { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+
+  .phase-line {
+    position: absolute; left: 200px; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--border), var(--border), transparent);
+  }
+  .phase-nodes { display: flex; flex-wrap: wrap; gap: 12px; padding: 20px 0 40px 32px; }
+
+  .node-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px; cursor: pointer;
+    transition: all 0.2s; position: relative; min-width: 180px;
+    flex: 1 1 180px; max-width: 240px;
+  }
+  .node-card:hover { border-color: rgba(124,92,252,0.4); transform: translateY(-2px); background: var(--surface2); }
+  .node-card.active { border-color: var(--accent); background: rgba(124,92,252,0.08); }
+  .node-num { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .node-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 6px; }
+  .node-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .node-icon { position: absolute; top: 14px; right: 14px; font-size: 16px; }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; margin-top: 32px;
+    display: none;
+  }
+  .detail-panel.visible { display: block; animation: fadeUp 0.3s ease; }
+  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .detail-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(124,92,252,0.15); }
+  .detail-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; }
+  .detail-body { font-size: 16px; color: #c8c8d8; line-height: 1.75; }
+
+  /* CAMINOS */
+  .paths-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .path-card {
+    border-radius: 16px; padding: 32px; border: 1px solid;
+    position: relative; overflow: hidden;
+  }
+  .path-card::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 180px; height: 180px; border-radius: 50%; opacity: 0.08;
+  }
+  .path-card.no-coupon { background: rgba(86,204,242,0.05); border-color: rgba(86,204,242,0.2); }
+  .path-card.no-coupon::before { background: var(--accent3); }
+  .path-card.coupon { background: rgba(252,92,125,0.05); border-color: rgba(252,92,125,0.2); }
+  .path-card.coupon::before { background: var(--accent2); }
+  .path-badge {
+    display: inline-block; padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; margin-bottom: 20px;
+  }
+  .no-coupon .path-badge { background: rgba(86,204,242,0.15); color: var(--accent3); }
+  .coupon .path-badge { background: rgba(252,92,125,0.15); color: var(--accent2); }
+  .path-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; margin-bottom: 12px; }
+  .path-desc { font-size: 15px; color: var(--muted); line-height: 1.65; margin-bottom: 24px; }
+  .path-steps { display: flex; flex-direction: column; gap: 10px; }
+  .path-step {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 14px; color: #c8c8d8;
+  }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+  .no-coupon .step-dot { background: var(--accent3); }
+  .coupon .step-dot { background: var(--accent2); }
+
+  /* EMAIL PREVIEW */
+  .email-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+  .email-tab {
+    padding: 8px 20px; border-radius: 8px; font-size: 14px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); cursor: pointer; transition: all 0.2s;
+  }
+  .email-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .email-preview { display: none; }
+  .email-preview.active { display: block; animation: fadeUp 0.3s ease; }
+  .email-frame {
+    background: white; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    max-width: 560px; margin: 0 auto;
+  }
+  .email-topbar {
+    background: #f5f5f5; padding: 12px 20px;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .email-meta { padding: 20px 28px 0; border-bottom: 1px solid #eee; }
+  .email-meta-row { display: flex; gap: 8px; font-size: 13px; color: #666; padding: 6px 0; }
+  .email-meta-row strong { color: #333; min-width: 50px; }
+  .email-body-wrap { padding: 28px; font-family: sans-serif; }
+  .email-logo { width: 80px; margin-bottom: 20px; }
+  .email-greeting { color: #ff6d5a; font-size: 22px; font-weight: bold; margin-bottom: 16px; }
+  .email-text { color: #606060; line-height: 1.6; font-size: 15px; margin-bottom: 20px; }
+  .coupon-block {
+    background: #ff6d5a; color: white; padding: 20px; border-radius: 8px;
+    text-align: center; margin-bottom: 20px;
+  }
+  .coupon-block h3 { font-size: 18px; margin-bottom: 8px; }
+  .coupon-code { font-family: monospace; font-size: 22px; font-weight: bold; letter-spacing: 2px; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; display: inline-block; margin: 8px 0; }
+  .coupon-terms { font-size: 12px; opacity: 0.85; }
+  .email-footer { color: #ccc; font-size: 12px; line-height: 1.6; }
+
+  /* IMPACT */
+  .impact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .impact-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px; text-align: center;
+  }
+  .impact-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 48px; letter-spacing: -2px; }
+  .impact-num.purple { color: var(--accent); }
+  .impact-num.pink { color: var(--accent2); }
+  .impact-num.blue { color: var(--accent3); }
+  .impact-label { font-size: 14px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+  /* TEAM */
+  .team-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 56px; }
+  .team-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 24px; position: relative; overflow: hidden;
+  }
+  .team-card::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 120px; height: 120px; border-radius: 50%; opacity: 0.07;
+  }
+  .team-card.jc { border-top: 3px solid var(--accent); }
+  .team-card.jc::before { background: var(--accent); }
+  .team-card.lm { border-top: 3px solid var(--accent2); }
+  .team-card.lm::before { background: var(--accent2); }
+  .team-card.al { border-top: 3px solid var(--accent3); }
+  .team-card.al::before { background: var(--accent3); }
+  .team-avatar {
+    width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; font-size: 20px; margin-bottom: 16px;
+  }
+  .team-card.jc .team-avatar { background: rgba(124,92,252,0.15); }
+  .team-card.lm .team-avatar { background: rgba(252,92,125,0.15); }
+  .team-card.al .team-avatar { background: rgba(86,204,242,0.15); }
+  .team-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .team-role-badge {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 16px;
+  }
+  .team-card.jc .team-role-badge { background: rgba(124,92,252,0.15); color: #b39dfc; }
+  .team-card.lm .team-role-badge { background: rgba(252,92,125,0.15); color: #fc9db3; }
+  .team-card.al .team-role-badge { background: rgba(86,204,242,0.15); color: var(--accent3); }
+  .team-phases { display: flex; flex-direction: column; gap: 8px; }
+  .team-phase-item {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #c8c8d8;
+  }
+  .team-phase-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .team-card.jc .team-phase-dot { background: var(--accent); }
+  .team-card.lm .team-phase-dot { background: var(--accent2); }
+  .team-card.al .team-phase-dot { background: var(--accent3); }
+  .team-time {
+    display: inline-block; font-size: 11px; color: var(--muted);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 7px; margin-left: auto; white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 0 40px; }
+
+  /* FOOTER */
+  footer {
+    text-align: center; padding: 40px;
+    color: var(--muted); font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 12px 20px; }
+    .nav-links { display: none; }
+    section { padding: 60px 20px; }
+    .hero { padding: 100px 20px 60px; }
+    .hero-stats { gap: 24px; }
+    .flow-phase { grid-template-columns: 120px 1fr; }
+    .paths-grid { grid-template-columns: 1fr; }
+    .impact-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">n8n × IA</div>
+  <div class="nav-links">
+    <a href="#flujo" class="active">Flujo</a>
+    <a href="#caminos">Caminos</a>
+    <a href="#email">Email</a>
+    <a href="#impacto">Impacto</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-badge">Automatización con Inteligencia Artificial</div>
+  <h1>Emails de marketing<br/><span>personalizados con IA</span></h1>
+  <p>Un flujo de n8n que analiza el feedback de cada cliente, redacta mensajes únicos y decide automáticamente si ofrecer un cupón de descuento.</p>
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-num">15<span></span></div>
+      <div class="stat-label">Nodos funcionales</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">2<span></span></div>
+      <div class="stat-label">Caminos de decisión</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">0<span>s</span></div>
+      <div class="stat-label">Intervención humana</div>
+    </div>
+  </div>
+  <div style="display:flex; gap:12px; margin-top:40px; position:relative; z-index:1; flex-wrap:wrap; justify-content:center;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; color:var(--muted);">Juan Camilo Bernal Gordillo</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; color:var(--muted);">Laura Marcela Quintero Poveda</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; color:var(--muted);">Aléx David Salgado Trujillo</div>
+  </div>
+  <div class="scroll-hint">Explorar</div>
+</div>
+
+<!-- FLUJO -->
+<section id="flujo">
+  <div class="section-label">El flujo completo</div>
+  <h2>Cada nodo explicado</h2>
+  <p class="section-desc">Haz clic en cualquier nodo para ver su explicación detallada.</p>
+
+  <div class="flow-container">
+    <div class="flow-phases">
+
+      <!-- FASE 1 -->
+      <div class="flow-phase">
+        <div class="phase-label-col">
+          <div class="phase-tag datos">Datos</div>
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase-nodes">
+          <div class="node-card" onclick="showDetail('trigger')">
+            <div class="node-num">01</div>
+            <div class="node-name">Manual Trigger</div>
+            <div class="node-desc">Punto de inicio del flujo</div>
+            <div class="node-icon">▶</div>
+          </div>
+          <div class="node-card" onclick="showDetail('http')">
+            <div class="node-num">02</div>
+            <div class="node-name">HTTP Request</div>
+            <div class="node-desc">Descarga el Excel con clientes</div>
+            <div class="node-icon">🌐</div>
+          </div>
+          <div class="node-card" onclick="showDetail('extract')">
+            <div class="node-num">03</div>
+            <div class="node-name">Extract from File</div>
+            <div class="node-desc">Convierte Excel en datos</div>
+            <div class="node-icon">📊</div>
+          </div>
+          <div class="node-card" onclick="showDetail('options')">
+            <div class="node-num">04</div>
+            <div class="node-name">Campaign Options</div>
+            <div class="node-desc">Define objetivo y tono</div>
+            <div class="node-icon">⚙️</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 2 -->
+      <div class="flow-phase">
+        <div class="phase-label-col">
+          <div class="phase-tag ia">IA</div>
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase-nodes">
+          <div class="node-card" onclick="showDetail('groq')">
+            <div class="node-num">05</div>
+            <div class="node-name">Groq Chat Model</div>
+            <div class="node-desc">Motor de IA ultrarrápido</div>
+            <div class="node-icon">🧠</div>
+          </div>
+          <div class="node-card" onclick="showDetail('extractor')">
+            <div class="node-num">06</div>
+            <div class="node-name">Information Extractor</div>
+            <div class="node-desc">Analiza y genera el mensaje</div>
+            <div class="node-icon">✨</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 3 -->
+      <div class="flow-phase">
+        <div class="phase-label-col">
+          <div class="phase-tag validacion">Validación</div>
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase-nodes">
+          <div class="node-card" onclick="showDetail('merge1')">
+            <div class="node-num">07</div>
+            <div class="node-name">AI Output + Prev Data</div>
+            <div class="node-desc">Une output con datos cliente</div>
+            <div class="node-icon">🔗</div>
+          </div>
+          <div class="node-card" onclick="showDetail('valid')">
+            <div class="node-num">08</div>
+            <div class="node-name">Is the result valid?</div>
+            <div class="node-desc">Verifica que la IA respondió bien</div>
+            <div class="node-icon">✅</div>
+          </div>
+          <div class="node-card" onclick="showDetail('error')">
+            <div class="node-num">09</div>
+            <div class="node-name">AI did fail us</div>
+            <div class="node-desc">Para el flujo si hay error</div>
+            <div class="node-icon">🛑</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 4 -->
+      <div class="flow-phase">
+        <div class="phase-label-col">
+          <div class="phase-tag decision">Decisión</div>
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase-nodes">
+          <div class="node-card" onclick="showDetail('couponif')">
+            <div class="node-num">10</div>
+            <div class="node-name">Coupon or not?</div>
+            <div class="node-desc">Bifurcación según decisión IA</div>
+            <div class="node-icon">🔀</div>
+          </div>
+          <div class="node-card" onclick="showDetail('fakecoupon')">
+            <div class="node-num">11</div>
+            <div class="node-name">Fake Coupon</div>
+            <div class="node-desc">Genera código de descuento</div>
+            <div class="node-icon">🎟️</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 5 -->
+      <div class="flow-phase">
+        <div class="phase-label-col">
+          <div class="phase-tag envio">Envío</div>
+        </div>
+        <div class="phase-line"></div>
+        <div class="phase-nodes">
+          <div class="node-card" onclick="showDetail('html1')">
+            <div class="node-num">12</div>
+            <div class="node-name">HTML Template</div>
+            <div class="node-desc">Email sin cupón</div>
+            <div class="node-icon">📧</div>
+          </div>
+          <div class="node-card" onclick="showDetail('html2')">
+            <div class="node-num">13</div>
+            <div class="node-name">HTML + Coupon</div>
+            <div class="node-desc">Email con cupón visual</div>
+            <div class="node-icon">💌</div>
+          </div>
+          <div class="node-card" onclick="showDetail('merge2')">
+            <div class="node-num">14</div>
+            <div class="node-name">Merge (sin cupón)</div>
+            <div class="node-desc">Une HTML simple con datos cliente</div>
+            <div class="node-icon">🔗</div>
+          </div>
+          <div class="node-card" onclick="showDetail('merge3')">
+            <div class="node-num">15</div>
+            <div class="node-name">Merge (con cupón)</div>
+            <div class="node-desc">Une HTML+cupón con datos cliente</div>
+            <div class="node-icon">🔗</div>
+          </div>
+          <div class="node-card" onclick="showDetail('send')">
+            <div class="node-num">16</div>
+            <div class="node-name">Send Email</div>
+            <div class="node-desc">Envía por SMTP</div>
+            <div class="node-icon">🚀</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-header">
+        <div class="detail-icon" id="detailIcon"></div>
+        <div class="detail-title" id="detailTitle"></div>
+      </div>
+      <div class="detail-body" id="detailBody"></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- CAMINOS -->
+<section id="caminos">
+  <div class="section-label">Lógica de decisión</div>
+  <h2>Los dos caminos del flujo</h2>
+  <p class="section-desc">Según el sentimiento detectado por la IA, cada cliente recibe una experiencia diferente.</p>
+
+  <div class="paths-grid">
+    <div class="path-card no-coupon">
+      <div class="path-badge">😊 Cliente satisfecho</div>
+      <div class="path-title">Sin cupón</div>
+      <div class="path-desc">La IA detectó feedback positivo o neutro. Se envía un email de seguimiento amigable para mantener la relación con el cliente.</div>
+      <div class="path-steps">
+        <div class="path-step"><div class="step-dot"></div><span>SendCoupon = false</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Va al template HTML simple</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Email con mensaje personalizado</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Se une con datos del cliente</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Se envía por SMTP</span></div>
+      </div>
+    </div>
+    <div class="path-card coupon">
+      <div class="path-badge">😠 Cliente insatisfecho</div>
+      <div class="path-title">Con cupón</div>
+      <div class="path-desc">La IA detectó insatisfacción en la reseña. Se genera un cupón de descuento automáticamente para recuperar al cliente.</div>
+      <div class="path-steps">
+        <div class="path-step"><div class="step-dot"></div><span>SendCoupon = true</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Genera código + 20% descuento</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Validez: 14 días desde hoy</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Template HTML con bloque cupón</span></div>
+        <div class="path-step"><div class="step-dot"></div><span>Se envía por SMTP</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- EMAIL PREVIEW -->
+<section id="email">
+  <div class="section-label">Resultado final</div>
+  <h2>Así llega el correo</h2>
+  <p class="section-desc">Vista previa de los dos tipos de email que reciben los clientes.</p>
+
+  <div class="email-tabs">
+    <button class="email-tab active" onclick="showEmail('simple')">Sin cupón</button>
+    <button class="email-tab" onclick="showEmail('coupon')">Con cupón</button>
+  </div>
+
+  <!-- EMAIL SIN CUPÓN -->
+  <div class="email-preview active" id="email-simple">
+    <div class="email-frame">
+      <div class="email-topbar">
+        <div class="dot" style="background:#ff5f57"></div>
+        <div class="dot" style="background:#febc2e"></div>
+        <div class="dot" style="background:#28c840"></div>
+      </div>
+      <div class="email-meta">
+        <div class="email-meta-row"><strong>De:</strong> tienda@ejemplo.com</div>
+        <div class="email-meta-row"><strong>Para:</strong> george.ellington@mail.com</div>
+        <div class="email-meta-row" style="padding-bottom:16px"><strong>Asunto:</strong> ¡Gracias por tu reseña, George! Tu opinión nos importa</div>
+      </div>
+      <div class="email-body-wrap">
+        <img class="email-logo" src="https://img.logoipsum.com/264.svg" alt="Logo"/>
+        <div class="email-greeting">Hey George Ellington,</div>
+        <p class="email-text">Queremos agradecerte por tomarte el tiempo de compartir tu experiencia con nuestra camiseta premium. Tu feedback es exactamente lo que necesitamos para seguir mejorando. Sabemos que cada detalle cuenta y lo tendremos muy presente.</p>
+        <p class="email-footer">Definitely not a real company Lmt.<br/>Also not a real street 123<br/>Unreal Town</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMAIL CON CUPÓN -->
+  <div class="email-preview" id="email-coupon">
+    <div class="email-frame">
+      <div class="email-topbar">
+        <div class="dot" style="background:#ff5f57"></div>
+        <div class="dot" style="background:#febc2e"></div>
+        <div class="dot" style="background:#28c840"></div>
+      </div>
+      <div class="email-meta">
+        <div class="email-meta-row"><strong>De:</strong> tienda@ejemplo.com</div>
+        <div class="email-meta-row"><strong>Para:</strong> sarah.johnson@mail.com</div>
+        <div class="email-meta-row" style="padding-bottom:16px"><strong>Asunto:</strong> Sarah, queremos compensarte por tu experiencia</div>
+      </div>
+      <div class="email-body-wrap">
+        <img class="email-logo" src="https://img.logoipsum.com/264.svg" alt="Logo"/>
+        <div class="email-greeting">Hey Sarah Johnson,</div>
+        <p class="email-text">Lamentamos que tu experiencia con los auriculares no haya sido la que esperabas. Nos tomamos muy en serio cada reseña y queremos darte una segunda oportunidad para que descubras lo que realmente podemos ofrecerte.</p>
+        <div class="coupon-block">
+          <h3>¡Aquí va un cupón para ti!<br/>20% en cualquier compra</h3>
+          <div class="coupon-code">F4k3ItT1llY0uM4k3It</div>
+          <p class="coupon-terms">Válido hasta 25 May 2026 | Compra mínima: $20</p>
+        </div>
+        <p class="email-footer">Definitely not a real company Lmt.<br/>Also not a real street 123<br/>Unreal Town</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- IMPACTO -->
+<section id="impacto">
+  <div class="section-label">El valor real</div>
+  <h2>Por qué esto importa</h2>
+  <p class="section-desc">El impacto de automatizar el marketing personalizado a escala.</p>
+
+  <div class="impact-grid">
+    <div class="impact-card">
+      <div class="impact-num purple">1000</div>
+      <div class="impact-label">emails personalizados procesados en minutos, no en días</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-num pink">0</div>
+      <div class="impact-label">palabras escritas manualmente por el equipo de marketing</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-num blue">100%</div>
+      <div class="impact-label">de los clientes insatisfechos reciben atención automática</div>
+    </div>
+  </div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+    <div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:22px; margin-bottom:16px;">¿Qué lo hace escalable?</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#c8c8d8;">
+          <span style="color:var(--green); margin-top:2px;">✓</span>
+          <span>Los datos personales nunca llegan a la IA — solo el producto y la reseña</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#c8c8d8;">
+          <span style="color:var(--green); margin-top:2px;">✓</span>
+          <span>El Excel de prueba se reemplaza por cualquier CRM o base de datos real</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#c8c8d8;">
+          <span style="color:var(--green); margin-top:2px;">✓</span>
+          <span>El tono y objetivo de campaña se cambian en un solo nodo</span>
+        </div>
+        <div style="display:flex; gap:12px; align-items:flex-start; font-size:15px; color:#c8c8d8;">
+          <span style="color:var(--green); margin-top:2px;">✓</span>
+          <span>El trigger manual se reemplaza por uno automático programado</span>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:72px; margin-bottom:12px;">🤖</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:18px; margin-bottom:8px;">Groq + n8n</div>
+      <div style="font-size:14px; color:var(--muted);">IA rápida + automatización sin límites</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Flujo n8n — Personalización de emails con IA &nbsp;·&nbsp; Sustentación académica
+</footer>
+
+<script>
+const details = {
+  trigger: {
+    icon: '▶',
+    title: 'Manual Trigger',
+    body: 'Todo flujo en n8n necesita un punto de inicio. En este caso es un trigger manual, lo que significa que nosotros decidimos cuándo ejecutarlo con un clic. En un escenario empresarial real esto se reemplazaría por un trigger automático — por ejemplo que se active solo cada lunes a las 8am, o que se dispare cada vez que un cliente deja una reseña en la tienda.'
+  },
+  http: {
+    icon: '🌐',
+    title: 'HTTP Request',
+    body: 'Este nodo hace una solicitud HTTP a una URL de internet, igual que cuando un navegador carga una página web. Descarga un archivo Excel con datos de clientes ficticios: nombre, email, producto comprado y su reseña. En un caso real, este nodo se reemplazaría por una conexión directa al CRM o base de datos de la empresa donde viven los clientes reales.'
+  },
+  extract: {
+    icon: '📊',
+    title: 'Extract from File',
+    body: 'El archivo descargado es un Excel, y n8n no puede trabajar directamente con ese formato. Este nodo abre el archivo y convierte cada fila en un objeto de datos que el flujo puede entender y procesar. A partir de aquí, el flujo repite todos los pasos siguientes por cada cliente — por eso al final llegan varios correos, uno por cada fila del Excel.'
+  },
+  options: {
+    icon: '⚙️',
+    title: 'Some Options for the Campaign',
+    body: 'Este es el panel de control de la campaña. Define dos parámetros clave que guían a la IA: el objetivo — "Engage the Customer" — y el tono — "amigable, ingenioso, directo y que abrace el feedback". Lo poderoso de esto es que si mañana quiero cambiar el enfoque de toda la campaña, solo modifico estos dos campos y la IA automáticamente ajusta todos los mensajes.'
+  },
+  groq: {
+    icon: '🧠',
+    title: 'Groq Chat Model',
+    body: 'Este nodo es el motor de IA del flujo. Groq es un proveedor especializado en velocidad — procesa solicitudes mucho más rápido que otras alternativas como OpenAI. Técnicamente funciona como sub-nodo del Information Extractor: no está en la cadena principal de forma independiente, sino que el Information Extractor lo llama internamente para ejecutar el razonamiento. Solo no hace nada — es el cerebro que espera instrucciones del Extractor.'
+  },
+  extractor: {
+    icon: '✨',
+    title: 'Information Extractor',
+    body: 'El nodo más importante del flujo. Le envía al modelo Groq un prompt con el producto comprado y la reseña del cliente, y le pide que responda con tres campos específicos: Headline (asunto del email), Body (cuerpo del mensaje personalizado), y SendCoupon (decisión booleana: sí o no). Al pedir una respuesta estructurada, el flujo puede usar esos datos directamente sin interpretar texto libre.'
+  },
+  merge1: {
+    icon: '🔗',
+    title: 'AI Output + Prev Data',
+    body: 'Cuando la IA termina de generar el contenido, ese output está separado de los datos originales del cliente. Este nodo Merge une ambas cosas — el mensaje generado por la IA con el nombre, email y demás datos del cliente — para tener todo en un solo paquete listo para los pasos siguientes.'
+  },
+  valid: {
+    icon: '✅',
+    title: 'Is the result valid?',
+    body: 'Antes de continuar, el flujo hace un control de calidad. Verifica que la IA realmente generó un Headline y un Body no vacíos. Si mandáramos un correo con el cuerpo vacío a un cliente real sería un error grave. Este nodo actúa como filtro — si todo está bien, continúa; si algo falló, desvía al nodo de error.'
+  },
+  error: {
+    icon: '🛑',
+    title: 'AI did fail us',
+    body: 'Si la validación detectó que la IA no generó el contenido correctamente, el flujo llega aquí y se detiene completamente con un mensaje de error. Es la red de seguridad del sistema — garantiza que nunca se envíe un correo vacío o mal formado a un cliente real.'
+  },
+  couponif: {
+    icon: '🔀',
+    title: 'Coupon them or not?',
+    body: 'Aquí el flujo se divide en dos caminos. Lee el campo SendCoupon que decidió la IA en el Information Extractor. Si es verdadero, el flujo va por el camino del cupón. Si es falso, va por el camino del email simple. Dos experiencias completamente diferentes para el cliente, decididas automáticamente por la IA según cómo estaba su reseña.'
+  },
+  fakecoupon: {
+    icon: '🎟️',
+    title: 'Fake Coupon',
+    body: 'Cuando el flujo va por el camino del cupón, este nodo genera los datos del cupón. En la demo es un código ficticio, pero lo interesante es que calcula la fecha de vencimiento dinámicamente — toma la fecha de hoy y le suma 14 días automáticamente. En un sistema real este nodo se conectaría al sistema de descuentos de la tienda para generar códigos únicos y válidos por cliente.'
+  },
+  html1: {
+    icon: '📧',
+    title: 'HTML Template (sin cupón)',
+    body: 'Arma el email visualmente en HTML para clientes satisfechos. Incluye el logo de la empresa, el saludo personalizado con el nombre del cliente y el cuerpo del mensaje generado por la IA. Todo en HTML puro, lo que hace que el correo llegue como un email de marketing profesional con diseño visual, no como texto plano.'
+  },
+  html2: {
+    icon: '💌',
+    title: 'HTML Template (con cupón)',
+    body: 'Igual que el template anterior, pero incluye además un bloque visual destacado con el código del cupón, el porcentaje de descuento y las condiciones de uso — incluyendo la fecha de vencimiento calculada dinámicamente. Es el mismo diseño base pero con un elemento adicional que incentiva al cliente insatisfecho a volver a comprar.'
+  },
+  merge2: {
+    icon: '🔗',
+    title: 'Merge (sin cupón)',
+    body: 'Antes de enviar el email simple, este nodo une el HTML ya construido (la plantilla sin cupón) con los datos del cliente — especialmente el email de destino. Es necesario porque el HTML se construyó en una rama del flujo y los datos del cliente venían de otra. Este merge los combina para tener todo listo para el envío.'
+  },
+  merge3: {
+    icon: '🔗',
+    title: 'Merge (con cupón)',
+    body: 'Equivalente al merge anterior pero para el camino del cupón. Une el HTML con el bloque visual del descuento ya construido con los datos del cliente — el email de destino. Dos merges independientes porque cada uno recibe los datos de su propia rama del flujo, y ambos convergen en el mismo nodo de envío final.'
+  },
+  send: {
+    icon: '🚀',
+    title: 'Send Email',
+    body: 'El nodo final. Toma todo lo construido y envía el correo usando SMTP — el protocolo estándar de envío de emails. El asunto es el Headline que generó la IA, el destinatario es el email del cliente que venía en el Excel, y el contenido es el HTML de las plantillas. En este punto el cliente recibe en su bandeja un correo personalizado, con su nombre, hablando específicamente de su experiencia.'
+  }
+};
+
+let currentNode = null;
+
+function showDetail(key) {
+  const d = details[key];
+  const panel = document.getElementById('detailPanel');
+  document.getElementById('detailIcon').textContent = d.icon;
+  document.getElementById('detailTitle').textContent = d.title;
+  document.getElementById('detailBody').textContent = d.body;
+
+  document.querySelectorAll('.node-card').forEach(c => c.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  if (currentNode === key) {
+    panel.classList.remove('visible');
+    currentNode = null;
+    event.currentTarget.classList.remove('active');
+  } else {
+    panel.classList.add('visible');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    currentNode = key;
+  }
+}
+
+function showEmail(type) {
+  document.querySelectorAll('.email-preview').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.email-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('email-' + type).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Highlight nav links on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 200) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+</body>
+</html>
